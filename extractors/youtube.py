@@ -1,8 +1,8 @@
 """
 extractors/youtube.py
 
-Implementação do extrator para a plataforma YouTube, utilizando
-o feed RSS XML nativo para varredura leve de novos vídeos.
+Implementation of an extractor for the YouTube platform,
+utilizing the native feed for lightweight scanning of new videos.
 """
 
 import yt_dlp
@@ -16,8 +16,8 @@ from schemas.channel_schema import YouTubeChannelConfig
 
 class YouTubeExtractor(PlatformExtractor):
     """
-    Extrator especializado para o YouTube. Lê o feed RSS oficial e
-    retorna a lista de itens disponíveis.
+    Specialized extractor for YouTube. Reads the official RSS feed and
+    returns a list of available items.
     """
 
     @property
@@ -26,7 +26,7 @@ class YouTubeExtractor(PlatformExtractor):
 
     def fetch_new_items(self, target_feed: str, options: Optional[FetchOptions] = None) -> List[MediaItem]:
         """
-        Varre as abas de vídeos e/ou shorts do YouTube com base nas opções tipadas.
+        Scans the YouTube videos and/or Shorts tabs based on the selected options.
         """
 
         opts: FetchOptions = options if options is not None else {}
@@ -36,26 +36,26 @@ class YouTubeExtractor(PlatformExtractor):
         all_items: List[MediaItem] = []
         seen_ids: Set[str] = set()
 
-        endpoints_a_varrer: List[Tuple[str, str]] = []
+        endpoints_to_scan: List[Tuple[str, str]] = []
         base_url = target_feed.rstrip("/")
 
-        # Se a URL for uma playlist explícita do YouTube, usamos ela diretamente sem adicionar sufixos de abas
+        # If the URL is an explicit YouTube playlist, we use it directly without adding any tab suffixes.
         if "playlist?list=" in base_url or "watch?v=" in base_url:
-            endpoints_a_varrer.append((base_url, "Playlist/Mídia Única"))
+            endpoints_to_scan.append((base_url, "Playlist/Single Media Item"))
         else:
-            # Comportamento normal para canais (respeitando as flags)
+            # Normal behavior for channels (respecting the flags)
             if "/videos" in base_url:
                 base_url = base_url.replace("/videos", "")
             if "/shorts" in base_url:
                 base_url = base_url.replace("/shorts", "")
 
             if fetch_videos:
-                endpoints_a_varrer.append((f"{base_url}/videos", "Vídeos"))
+                endpoints_to_scan.append((f"{base_url}/videos", "Videos"))
             if fetch_shorts:
-                endpoints_a_varrer.append((f"{base_url}/shorts", "Shorts"))
+                endpoints_to_scan.append((f"{base_url}/shorts", "Shorts"))
 
-            if not endpoints_a_varrer:
-                endpoints_a_varrer.append((f"{base_url}/videos", "Vídeos"))
+            if not endpoints_to_scan:
+                endpoints_to_scan.append((f"{base_url}/videos", "Videos"))
 
         ydl_opts: Dict[str, object] = {
             "extract_flat": True,
@@ -64,17 +64,15 @@ class YouTubeExtractor(PlatformExtractor):
             "quiet": True,
         }
 
-        for endpoint, tipo in endpoints_a_varrer:
-            print(f"\033[34m[YouTubeExtractor]\033[0m Varredura leve ({tipo}) no canal: {endpoint}")
+        for endpoint, tipo in endpoints_to_scan:
+            print(f"\033[34m[YouTubeExtractor]\033[0m Light scan ({tipo}) on channel: {endpoint}")
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore[arg-type]
                     info = ydl.extract_info(endpoint, download=False)
 
                     if not info:
-                        print(
-                            f"\033[33m[YouTubeExtractor] [AVISO]\033[0m Falha ao varrer a aba {tipo}: Nenhum dado retornado."
-                        )
+                        print(f"\033[33m[YouTubeExtractor] [WARNING]\033[0m Fail to scan {tipo}: No data returned.")
                         continue
 
                     entries = info.get("entries", [info])
@@ -100,9 +98,9 @@ class YouTubeExtractor(PlatformExtractor):
                                 )
                             )
             except Exception as e:
-                print(f"\033[31m[YouTubeExtractor] [ERRO]\033[0m Erro ao varrer {tipo}: {e}")
+                print(f"\033[31m[YouTubeExtractor] [ERROR]\033[0m Fail to scan {tipo}: {e}")
 
-        print(f"\033[32m[YouTubeExtractor] [SUCESSO]\033[0m Total de {len(all_items)} itens únicos encontrados.")
+        print(f"\033[32m[YouTubeExtractor] [SUCCESS]\033[0m Total of {len(all_items)} unique items found.")
 
         return all_items
 
@@ -110,8 +108,8 @@ class YouTubeExtractor(PlatformExtractor):
         self, item_url: str, output_dir: Path, archive_path: Path, cookies_path: Optional[Path] = None
     ) -> Dict[str, object]:
         """
-        Constrói o dicionário de opções padrão do yt-dlp mantendo a preferência
-        de qualidade, salvando metadados e miniaturas nativamente.
+        Constructs the default yt-dlp options dictionary, maintaining quality
+        preferences and natively saving metadata and thumbnails.
         """
 
         ydl_opts: Dict[str, object] = {
@@ -131,11 +129,11 @@ class YouTubeExtractor(PlatformExtractor):
         if cookies_path and cookies_path.exists():
             ydl_opts["cookiefile"] = str(cookies_path.resolve())
 
-        ydl_opts["url_alvo"] = item_url
+        ydl_opts["target_url"] = item_url
 
         return ydl_opts
 
-    def extrair_opcoes(self, channel_config: BaseChannelConfig) -> FetchOptions:
+    def extract_options(self, channel_config: BaseChannelConfig) -> FetchOptions:
         yt_config = cast(YouTubeChannelConfig, channel_config)
 
         return {

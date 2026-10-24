@@ -1,9 +1,7 @@
 """
 main.py
 
-Orquestrador principal do sistema de arquivamento digital.
-Lê a configuração dos canais, gerencia o mapeamento de pastas e executa
-o fluxo de verificação de feeds e downloads automatizados.
+loads extractors, create instances and invokes methods to run the project.
 """
 
 from typing import Dict
@@ -13,29 +11,28 @@ from extractors.youtube import YouTubeExtractor
 from config.manager import ConfigManager
 
 
-def carregar_extratores() -> Dict[str, PlatformExtractor]:
-    extratores = [
+def load_extractors() -> Dict[str, PlatformExtractor]:
+    extractors = [
         YouTubeExtractor(),
     ]
-    return {extrator.name: extrator for extrator in extratores}
+    return {extrator.name: extrator for extrator in extractors}
 
 
 def main() -> None:
     config_manager = ConfigManager()
-    extratores = carregar_extratores()
+    extractors = load_extractors()
 
-    # Instancia o orquestrador isolado
-    print(f"\033[36m==================================================\033[0m")
-    print(f"\033[1m     ARCHIVER SYSTEM - INICIANDO ROTINA DE CANAIS   \033[0m")
-    print(f"\033[36m==================================================\033[0m")
+    print(f"\033[36m=============================================\033[0m")
+    print(f"\033[1m          STARTING ARCHIVING ROUTINE          \033[0m")
+    print(f"\033[36m=============================================\033[0m")
 
-    orquestrador = ChannelArchiverOrchestrator(config_manager, extratores)
+    orquestrador = ChannelArchiverOrchestrator(config_manager, extractors)
 
     orquestrador.executar()
 
-    print(f"\n\033[32m==================================================\033[0m")
-    print(f"\033[1m       ROTINA DE ARQUIVAMENTO CONCLUÍDA           \033[0m")
-    print(f"\033[32m==================================================\033[0m")
+    print(f"\n\033[32m==============================================\033[0m")
+    print(f"\033[1m          ARCHIVING ROUTINE COMPLETED          \033[0m")
+    print(f"\033[32m==============================================\033[0m")
 
 
 if __name__ == "__main__":

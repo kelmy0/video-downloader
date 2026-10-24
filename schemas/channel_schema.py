@@ -14,12 +14,12 @@ class BaseChannelConfig(TypedDict, total=False):
     feed_url: str
     folder_name: str
     last_checked: str
-    fetch_videos: bool
 
 
 class YouTubeChannelConfig(BaseChannelConfig, total=False):
     """Specific configuration for YouTube channels."""
 
+    fetch_videos: bool
     fetch_shorts: bool
 
 

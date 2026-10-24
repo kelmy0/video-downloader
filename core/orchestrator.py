@@ -1,8 +1,8 @@
 """
 core/orchestrator.py
 
-Módulo responsável por gerenciar a execução da varredura de canais,
-validação de cooldown, chamadas aos extratores e execução dos downloads.
+Module responsible for managing the execution of channel scanning,
+cooldown validation, calls to extractors, and the execution of downloads.
 """
 
 from datetime import datetime
@@ -16,20 +16,20 @@ from schemas.channel_schema import BaseChannelConfig
 
 
 class ChannelArchiverOrchestrator:
-    """Orquestrador do ciclo de vida de arquivamento dos canais."""
+    """Orchestrator of the archiving lifecycle for channels."""
 
-    def __init__(self, config_manager: ConfigManager, extratores: Dict[str, PlatformExtractor]) -> None:
+    def __init__(self, config_manager: ConfigManager, extractors: Dict[str, PlatformExtractor]) -> None:
         self.config_manager = config_manager
-        self.extratores = extratores
+        self.extractors = extractors
 
-    def _carregar_ids_arquivados(self, archive_path: Path) -> Set[Tuple[str, str]]:
+    def _load_archived_ids(self, archive_path: Path) -> Set[Tuple[str, str]]:
         """
-        Lê o archive.txt do yt-dlp e retorna um conjunto (set) apenas com os IDs
-        dos vídeos já baixados, garantindo busca O(1) ultra-rápida.
+        Reads the yt-dlp `archive.txt` file and returns a set containing only the IDs
+        of the videos already downloaded.
         """
-        ids_baixados: Set[Tuple[str, str]] = set()
+        downloaded_ids: Set[Tuple[str, str]] = set()
         if not archive_path.exists():
-            return ids_baixados
+            return downloaded_ids
 
         try:
             with open(archive_path, "r", encoding="utf-8") as f:
@@ -38,27 +38,27 @@ class ChannelArchiverOrchestrator:
                     if len(parts) >= 2:
                         platform = parts[0].lower()
                         video_id = parts[1]
-                        ids_baixados.add((platform, video_id))
+                        downloaded_ids.add((platform, video_id))
         except Exception as e:
-            print(f"\033[33m[AVISO]\033[0m Falha ao ler o arquivo archive.txt: {e}")
+            print(f"\033[33m[WARNING]\033[0m Failed to read the file archive.txt: {e}")
 
-        return ids_baixados
+        return downloaded_ids
 
     def executar(self) -> None:
-        # Verifica as dependencias do projeto
+        # Check the project dependencies
         if not DependencyChecker.validate_enviroment():
             return
 
-        root_download_dir, cooldown_minutes, cookies_path = self.config_manager.carregar_configuracoes()
+        root_download_dir, cooldown_minutes, cookies_path = self.config_manager.load_configs()
         if not root_download_dir:
             return
 
-        channels: List[BaseChannelConfig] = self.config_manager.carregar_canais()
+        channels: List[BaseChannelConfig] = self.config_manager.load_channels()
         if not channels:
             return
 
-        agora: datetime = datetime.now()
-        houve_alteracao_nos_canais: bool = False
+        now: datetime = datetime.now()
+        there_is_change_in_channels: bool = False
 
         for idx, channel_config in enumerate(channels, start=1):
             name = channel_config.get("name", f"Canal_{idx}")
@@ -67,66 +67,66 @@ class ChannelArchiverOrchestrator:
             folder_name = channel_config.get("folder_name")
 
             print(f"\n\033[36m--------------------------------------------------\033[0m")
-            print(f"\033[1m[{idx}/{len(channels)}] Processando: {name} (Plataforma: {platform_name})\033[0m")
+            print(f"\033[1m[{idx}/{len(channels)}] Processing: {name} (Platform: {platform_name})\033[0m")
             print(f"\033[36m--------------------------------------------------\033[0m")
 
-            # Validação de Cooldown
-            if self.config_manager.verificar_cooldown(channel_config, cooldown_minutes, agora):
+            # Cooldown
+            if self.config_manager.check_cooldown(channel_config, cooldown_minutes, now):
                 continue
 
             if not platform_name or not feed_url or not folder_name:
-                print(f"\033[33m[AVISO]\033[0m Configuração incompleta para o canal '{name}'. Ignorando.")
+                print(f"\033[33m[WARNING]\033[0m Incomplete configuration for channel '{name}'. Skipping.")
                 continue
 
-            extrator = self.extratores.get(platform_name)
-            if not extrator:
-                print(f"\033[33m[AVISO]\033[0m Plataforma '{platform_name}' não suportada ou não registrada.")
+            extractor = self.extractors.get(platform_name)
+            if not extractor:
+                print(f"\033[33m[WARNING]\033[0m Platform '{platform_name}' is not supported or not registered.")
                 continue
 
             output_dir = root_download_dir / folder_name
             archive_path = output_dir / "archive.txt"
 
-            print(f"\033[34m[INFO]\033[0m Pasta de destino: {output_dir.resolve()}")
+            print(f"\033[34m[INFO]\033[0m Destination folder: {output_dir.resolve()}")
 
-            # 1. Carrega os pares (plataforma, id) já baixados do disco
-            pares_ja_baixados = self._carregar_ids_arquivados(archive_path)
+            # 1. Loads the (platform, id) pairs already downloaded from the disk
+            pairs_already_downloaded = self._load_archived_ids(archive_path)
 
-            # 2. Extrai as opções específicas da plataforma
-            options: FetchOptions = extrator.extrair_opcoes(channel_config)
+            # 2. Extracts platform-specific options
+            options: FetchOptions = extractor.extract_options(channel_config)
 
-            # 3. Pega todos os itens do feed
-            items = extrator.fetch_new_items(feed_url, options=options)
+            # 3. Gets all items from the feed
+            items = extractor.fetch_new_items(feed_url, options=options)
 
-            channel_config["last_checked"] = agora.strftime("%Y-%m-%d %H:%M:%S")
-            houve_alteracao_nos_canais = True
+            channel_config["last_checked"] = now.strftime("%Y-%m-%d %H:%M:%S")
+            there_is_change_in_channels = True
 
             if not items:
-                print(f"\033[34m[INFO]\033[0m Nenhum item retornado pelo feed para '{name}'.")
+                print(f"\033[34m[INFO]\033[0m No items were returned by the feed for '{name}'.")
                 continue
 
-            # 4. OTIMIZAÇÃO COM MULTI-PLATAFORMA: Valida combinando a plataforma atual e o ID do item
-            nome_plataforma = extrator.name.lower()
-            itens_novos = [item for item in items if (nome_plataforma, item.id) not in pares_ja_baixados]
-            total_ignorados = len(items) - len(itens_novos)
+            # 4. MULTI-PLATFORM OPTIMIZATION: Validates by combining the current platform and the item ID
+            platform_name = extractor.name.lower()
+            new_items = [item for item in items if (platform_name, item.id) not in pairs_already_downloaded]
+            total_skipped = len(items) - len(new_items)
 
             print(
-                f"\033[34m[INFO]\033[0m Total no feed: {len(items)} | Já baixados: {total_ignorados} | \033[32mNovos para baixar: {len(itens_novos)}\033[0m"
+                f"\033[34m[INFO]\033[0m Total in the feed: {len(items)} | Already downloaded: {total_skipped} |\033[32m New items to download: {len(new_items)}\033[0m"
             )
 
-            if not itens_novos:
-                print(f"\033[32m[INFO]\033[0m Nenhum vídeo novo para processar neste canal.")
+            if not new_items:
+                print(f"\033[32m[INFO]\033[0m No new videos to process on this channel.")
                 continue
 
             for item in items:
-                print(f"\n\033[33m[PROCESSANDO ITEM]\033[0m {item.title} (ID: {item.id})")
+                print(f"\n\033[33m[PROCESSING ITEM]\033[0m {item.title} (ID: {item.id})")
 
-                command = extrator.get_download_command(
+                command = extractor.get_download_command(
                     item_url=item.url, output_dir=output_dir, archive_path=archive_path, cookies_path=cookies_path
                 )
-                sucesso = MediaDownloader.execute(command, output_dir)
+                success = MediaDownloader.execute(command, output_dir)
 
-                if not sucesso:
-                    print(f"\033[31m[ERRO]\033[0m O download do item {item.id} falhou ou foi ignorado.")
+                if not success:
+                    print(f"\033[31m[ERROR]\033[0m The download of item {item.id} failed or was skipped.")
 
-        if houve_alteracao_nos_canais:
-            self.config_manager.salvar_alteracoes_canais(channels)
+        if there_is_change_in_channels:
+            self.config_manager.save_channel_changes(channels)
