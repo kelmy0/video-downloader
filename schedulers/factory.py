@@ -4,8 +4,10 @@ This factory determines the task scheduler instance based on the operating syste
 """
 
 import sys
-from .base import BaseScheduler
-from .windows import WindowsScheduler
+from schedulers.base import BaseScheduler
+from schedulers.windows import WindowsScheduler
+from schedulers.linux import LinuxScheduler
+from schedulers.mac import MacScheduler
 
 
 class SchedulerFactory:
@@ -15,10 +17,8 @@ class SchedulerFactory:
         if sys.platform.startswith("win"):
             return WindowsScheduler()
         elif sys.platform.startswith("linux"):
-            # return LinuxScheduler()
-            raise NotImplementedError("Linux scheduler not implemented yet.")
+            return LinuxScheduler()
         elif sys.platform.startswith("darwin"):
-            # return MacScheduler()
-            raise NotImplementedError("macOS scheduler not implemented yet.")
+            return MacScheduler()
         else:
             raise OSError(f"Unsupported operating system: {sys.platform}")
