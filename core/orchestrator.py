@@ -1,17 +1,16 @@
 """
 core/orchestrator.py
 
-Module responsible for managing the execution of channel scanning,
-cooldown validation, calls to extractors, and the execution of downloads.
+Module responsible for managing the execution flow of channel archiving routines.
 """
 
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Any
-from core.base import PlatformExtractor
-from core.downloader import MediaDownloader
-from core.dependencies import DependencyChecker
 from config.manager import ConfigManager
+from core.base import PlatformExtractor
+from core.channel_processor import ChannelProcessor
+from core.dependencies import DependencyChecker
 from schemas.channel_schema import BaseChannelConfig
 from schedulers.factory import SchedulerFactory
 
@@ -22,6 +21,7 @@ class ChannelArchiverOrchestrator:
     def __init__(self, config_manager: ConfigManager, extractors: Dict[str, PlatformExtractor[Any]]) -> None:
         self.config_manager = config_manager
         self.extractors = extractors
+        self.processor = ChannelProcessor(config_manager, extractors)
 
     def _load_archived_ids(self, archive_path: Path) -> Set[Tuple[str, str]]:
         """
@@ -45,96 +45,54 @@ class ChannelArchiverOrchestrator:
 
         return downloaded_ids
 
-    def executar(self) -> None:
-        # Check the project dependencies
+    def run(self) -> None:
+        """Validates environment, sets up schedules, and executes the channel archiving loop."""
+        # 1. Check the project dependencies
         if not DependencyChecker.validate_enviroment():
             return
 
+        # 2. Load global configurations
         root_download_dir, cooldown_minutes, cookies_path, scheduler_config = self.config_manager.load_configs()
         if not root_download_dir or not scheduler_config:
             return
 
+        # 3. Load channels configuration
         channels: List[BaseChannelConfig] = self.config_manager.load_channels()
         if not channels:
             return
 
+        # 4. Setup scheduler if configured
         if "interval_minutes" in scheduler_config and "enable_on_startup" in scheduler_config:
             scheduler = SchedulerFactory.get_scheduler()
             if not scheduler.setup_schedule(
                 scheduler_config["interval_minutes"], scheduler_config["enable_on_startup"]
             ):
-                print(f"\033[33m[WARNING]\033[0m Some task schedules failed.")
+                print("\033[33m[WARNING]\033[0m Some task schedules failed.")
 
         now: datetime = datetime.now()
         there_is_change_in_channels: bool = False
 
+        # 5. Process each registered channel
         for idx, channel_config in enumerate(channels, start=1):
-            name = channel_config.get("name", f"Canal_{idx}")
+            name = channel_config.get("name", f"Channel_{idx}")
             platform_name = channel_config.get("platform", "").lower()
-            feed_url = channel_config.get("feed_url")
-            folder_name = channel_config.get("folder_name")
 
             print(f"\n\033[36m--------------------------------------------------\033[0m")
             print(f"\033[1m[{idx}/{len(channels)}] Processing: {name} (Platform: {platform_name})\033[0m")
             print(f"\033[36m--------------------------------------------------\033[0m")
 
-            # Cooldown
-            if self.config_manager.check_cooldown(channel_config, cooldown_minutes, now):
-                continue
-
-            if not platform_name or not feed_url or not folder_name:
-                print(f"\033[33m[WARNING]\033[0m Incomplete configuration for channel '{name}'. Skipping.")
-                continue
-
-            extractor = self.extractors.get(platform_name)
-            if not extractor:
-                print(f"\033[33m[WARNING]\033[0m Platform '{platform_name}' is not supported or not registered.")
-                continue
-
-            output_dir = root_download_dir / folder_name
-            archive_path = output_dir / "archive.txt"
-
-            print(f"\033[34m[INFO]\033[0m Destination folder: {output_dir.resolve()}")
-
-            # 1. Loads the (platform, id) pairs already downloaded from the disk
-            pairs_already_downloaded = self._load_archived_ids(archive_path)
-
-            # 2. Extracts platform-specific options
-            options = extractor.extract_options(channel_config)
-
-            # 3. Gets all items from the feed
-            items = extractor.fetch_new_items(feed_url, options=options)
-
-            channel_config["last_checked"] = now.strftime("%Y-%m-%d %H:%M:%S")
-            there_is_change_in_channels = True
-
-            if not items:
-                print(f"\033[34m[INFO]\033[0m No items were returned by the feed for '{name}'.")
-                continue
-
-            # 4. MULTI-PLATFORM OPTIMIZATION: Validates by combining the current platform and the item ID
-            platform_name = extractor.name.lower()
-            new_items = [item for item in items if (platform_name, item.id) not in pairs_already_downloaded]
-            total_skipped = len(items) - len(new_items)
-
-            print(
-                f"\033[34m[INFO]\033[0m Total in the feed: {len(items)} | Already downloaded: {total_skipped} |\033[32m New items to download: {len(new_items)}\033[0m"
+            # Execute channel processing via dedicated processor module
+            processed_successfully = self.processor.process_channel(
+                channel_config=channel_config,
+                root_download_dir=root_download_dir,
+                cooldown_minutes=cooldown_minutes,
+                cookies_path=cookies_path,
+                now=now,
             )
 
-            if not new_items:
-                print(f"\033[32m[INFO]\033[0m No new videos to process on this channel.")
-                continue
+            if processed_successfully:
+                there_is_change_in_channels = True
 
-            for item in new_items:
-                print(f"\n\033[33m[PROCESSING ITEM]\033[0m {item.title} (ID: {item.id})")
-
-                command = extractor.get_download_command(
-                    item_url=item.url, output_dir=output_dir, archive_path=archive_path, cookies_path=cookies_path
-                )
-                success = MediaDownloader.execute(command, output_dir)
-
-                if not success:
-                    print(f"\033[31m[ERROR]\033[0m The download of item {item.id} failed or was skipped.")
-
+        # 6. Save state changes if any occurred
         if there_is_change_in_channels:
             self.config_manager.save_channel_changes(channels)
