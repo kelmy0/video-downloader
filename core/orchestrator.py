@@ -7,8 +7,8 @@ cooldown validation, calls to extractors, and the execution of downloads.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
-from core.base import PlatformExtractor, FetchOptions
+from typing import Dict, List, Set, Tuple, Any
+from core.base import PlatformExtractor
 from core.downloader import MediaDownloader
 from core.dependencies import DependencyChecker
 from config.manager import ConfigManager
@@ -18,7 +18,7 @@ from schemas.channel_schema import BaseChannelConfig
 class ChannelArchiverOrchestrator:
     """Orchestrator of the archiving lifecycle for channels."""
 
-    def __init__(self, config_manager: ConfigManager, extractors: Dict[str, PlatformExtractor]) -> None:
+    def __init__(self, config_manager: ConfigManager, extractors: Dict[str, PlatformExtractor[Any]]) -> None:
         self.config_manager = config_manager
         self.extractors = extractors
 
@@ -92,7 +92,7 @@ class ChannelArchiverOrchestrator:
             pairs_already_downloaded = self._load_archived_ids(archive_path)
 
             # 2. Extracts platform-specific options
-            options: FetchOptions = extractor.extract_options(channel_config)
+            options = extractor.extract_options(channel_config)
 
             # 3. Gets all items from the feed
             items = extractor.fetch_new_items(feed_url, options=options)
@@ -117,7 +117,7 @@ class ChannelArchiverOrchestrator:
                 print(f"\033[32m[INFO]\033[0m No new videos to process on this channel.")
                 continue
 
-            for item in items:
+            for item in new_items:
                 print(f"\n\033[33m[PROCESSING ITEM]\033[0m {item.title} (ID: {item.id})")
 
                 command = extractor.get_download_command(

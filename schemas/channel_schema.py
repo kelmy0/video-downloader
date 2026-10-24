@@ -23,6 +23,11 @@ class YouTubeChannelConfig(BaseChannelConfig, total=False):
     fetch_shorts: bool
 
 
+class YouTubeFetchOptions(TypedDict, total=False):
+    fetch_videos: bool
+    fetch_shorts: bool
+
+
 # class BilibiliChannelConfig(BaseChannelConfig, total=False):
 #     fetch_dynamic: bool
 

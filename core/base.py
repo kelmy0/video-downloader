@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, TypedDict, Dict
+from typing import List, Optional, Dict, TypeVar, Generic
 from schemas.channel_schema import BaseChannelConfig
 
 
@@ -19,14 +19,10 @@ class MediaItem:
     upload_date: Optional[str] = None  # Publication date (in YYYYMMDD or ISO format, if available).
 
 
-class FetchOptions(TypedDict, total=False):
-    """Strict typing for additional search options in feeds."""
-
-    fetch_videos: bool
-    fetch_shorts: bool
+T_Options = TypeVar("T_Options")
 
 
-class PlatformExtractor(ABC):
+class PlatformExtractor(ABC, Generic[T_Options]):
     """
     Abstract Base Class (Interface) that defines the mandatory contract
     that any new platform extractor must implement.
@@ -45,7 +41,7 @@ class PlatformExtractor(ABC):
         pass
 
     @abstractmethod
-    def fetch_new_items(self, target_feed: str, options: Optional[FetchOptions] = None) -> List[MediaItem]:
+    def fetch_new_items(self, target_feed: str, options: Optional[T_Options] = None) -> List[MediaItem]:
         """
         Reads the platform's lightweight feed.
         Args:
@@ -73,6 +69,6 @@ class PlatformExtractor(ABC):
         pass
 
     @abstractmethod
-    def extract_options(self, channel_config: BaseChannelConfig) -> FetchOptions:
+    def extract_options(self, channel_config: BaseChannelConfig) -> T_Options:
         """Extracts specific options from the generic channel configuration."""
         pass

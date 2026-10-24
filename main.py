@@ -4,14 +4,14 @@ main.py
 loads extractors, create instances and invokes methods to run the project.
 """
 
-from typing import Dict
+from typing import Dict, Any
 from core.base import PlatformExtractor
 from core.orchestrator import ChannelArchiverOrchestrator
 from extractors.youtube import YouTubeExtractor
 from config.manager import ConfigManager
 
 
-def load_extractors() -> Dict[str, PlatformExtractor]:
+def load_extractors() -> Dict[str, PlatformExtractor[Any]]:
     extractors = [
         YouTubeExtractor(),
     ]

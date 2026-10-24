@@ -8,13 +8,12 @@ utilizing the native feed for lightweight scanning of new videos.
 import yt_dlp
 
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, cast, Dict
-from core.base import PlatformExtractor, FetchOptions, MediaItem
-from config.manager import BaseChannelConfig
-from schemas.channel_schema import YouTubeChannelConfig
+from typing import List, Optional, Set, Tuple, Dict
+from core.base import PlatformExtractor, MediaItem
+from schemas.channel_schema import YouTubeFetchOptions, YouTubeChannelConfig, BaseChannelConfig
 
 
-class YouTubeExtractor(PlatformExtractor):
+class YouTubeExtractor(PlatformExtractor[YouTubeFetchOptions]):
     """
     Specialized extractor for YouTube. Reads the official RSS feed and
     returns a list of available items.
@@ -24,12 +23,12 @@ class YouTubeExtractor(PlatformExtractor):
     def name(self) -> str:
         return "youtube"
 
-    def fetch_new_items(self, target_feed: str, options: Optional[FetchOptions] = None) -> List[MediaItem]:
+    def fetch_new_items(self, target_feed: str, options: Optional[YouTubeFetchOptions] = None) -> List[MediaItem]:
         """
         Scans the YouTube videos and/or Shorts tabs based on the selected options.
         """
 
-        opts: FetchOptions = options if options is not None else {}
+        opts: YouTubeFetchOptions = options if options is not None else {}
         fetch_videos = opts.get("fetch_videos", True)
         fetch_shorts = opts.get("fetch_shorts", False)
 
@@ -133,8 +132,8 @@ class YouTubeExtractor(PlatformExtractor):
 
         return ydl_opts
 
-    def extract_options(self, channel_config: BaseChannelConfig) -> FetchOptions:
-        yt_config = cast(YouTubeChannelConfig, channel_config)
+    def extract_options(self, channel_config: BaseChannelConfig) -> YouTubeFetchOptions:
+        yt_config: YouTubeChannelConfig = channel_config  # type: ignore[assignment]
 
         return {
             "fetch_videos": yt_config.get("fetch_videos", True),
