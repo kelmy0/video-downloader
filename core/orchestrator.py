@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 from core.base import PlatformExtractor, FetchOptions
 from core.downloader import MediaDownloader
+from core.dependencies import DependencyChecker
 from config.manager import ConfigManager
 from config.schemas import BaseChannelConfig
 
@@ -44,6 +45,10 @@ class ChannelArchiverOrchestrator:
         return ids_baixados
 
     def executar(self) -> None:
+        # Verifica as dependencias do projeto
+        if not DependencyChecker.validate_enviroment():
+            return
+
         root_download_dir, cooldown_minutes, cookies_path = self.config_manager.carregar_configuracoes()
         if not root_download_dir:
             return

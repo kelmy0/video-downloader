@@ -26,10 +26,6 @@ class ConfigManager:
         """
         1. Valida e carrega o config.json (diretório raiz, cooldown e cookies opcionais).
         """
-
-        print(f"\033[36m==================================================\033[0m")
-        print(f"\033[1m     ARCHIVER SYSTEM - INICIANDO ROTINA DE CANAIS   \033[0m")
-        print(f"\033[36m==================================================\033[0m")
         print(f"\033[34m[INFO]\033[0m Diretório base do sistema: {self.diretorio_base}")
 
         # 1. Valida se o arquivo de configuração existe
@@ -80,6 +76,7 @@ class ConfigManager:
             return None, 0, None
 
         print(f"\033[34m[INFO]\033[0m Diretório raiz de downloads: {root_download_dir.resolve()}")
+
         return root_download_dir, cooldown_minutes, cookies_path
 
     def carregar_canais(self) -> List[BaseChannelConfig]:

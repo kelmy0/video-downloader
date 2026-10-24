@@ -25,6 +25,10 @@ def main() -> None:
     extratores = carregar_extratores()
 
     # Instancia o orquestrador isolado
+    print(f"\033[36m==================================================\033[0m")
+    print(f"\033[1m     ARCHIVER SYSTEM - INICIANDO ROTINA DE CANAIS   \033[0m")
+    print(f"\033[36m==================================================\033[0m")
+
     orquestrador = ChannelArchiverOrchestrator(config_manager, extratores)
 
     orquestrador.executar()
