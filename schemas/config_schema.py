@@ -3,12 +3,12 @@ schemas/config_schema.py
 schema of config.json file
 """
 
-from typing import TypedDict
+from typing import TypedDict, NotRequired
 
 
-class PathConfig(TypedDict, total=False):
+class PathConfig(TypedDict):
     download_path: str
-    cookies_path: str
+    cookies_path: NotRequired[str]
 
 
 class SchedulerConfig(TypedDict, total=False):
@@ -16,7 +16,7 @@ class SchedulerConfig(TypedDict, total=False):
     interval_minutes: int
 
 
-class AppConfig(TypedDict, total=False):
+class AppConfig(TypedDict):
     path: PathConfig
     cooldown_minutes: int
     scheduler: SchedulerConfig

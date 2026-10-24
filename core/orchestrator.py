@@ -13,6 +13,7 @@ from core.downloader import MediaDownloader
 from core.dependencies import DependencyChecker
 from config.manager import ConfigManager
 from schemas.channel_schema import BaseChannelConfig
+from schedulers.factory import SchedulerFactory
 
 
 class ChannelArchiverOrchestrator:
@@ -49,13 +50,20 @@ class ChannelArchiverOrchestrator:
         if not DependencyChecker.validate_enviroment():
             return
 
-        root_download_dir, cooldown_minutes, cookies_path = self.config_manager.load_configs()
-        if not root_download_dir:
+        root_download_dir, cooldown_minutes, cookies_path, scheduler_config = self.config_manager.load_configs()
+        if not root_download_dir or not scheduler_config:
             return
 
         channels: List[BaseChannelConfig] = self.config_manager.load_channels()
         if not channels:
             return
+
+        if "interval_minutes" in scheduler_config and "enable_on_startup" in scheduler_config:
+            scheduler = SchedulerFactory.get_scheduler()
+            if not scheduler.setup_schedule(
+                scheduler_config["interval_minutes"], scheduler_config["enable_on_startup"]
+            ):
+                print(f"\033[33m[WARNING]\033[0m Some task schedules failed.")
 
         now: datetime = datetime.now()
         there_is_change_in_channels: bool = False

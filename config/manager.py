@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List, Tuple
-from schemas.config_schema import AppConfig
+from schemas.config_schema import AppConfig, SchedulerConfig
 from schemas.channel_schema import BaseChannelConfig
 
 
@@ -22,7 +22,7 @@ class ConfigManager:
         self.config_path: Path = self.config_dir / "config.json"
         self.channels_path: Path = self.config_dir / "channels.json"
 
-    def load_configs(self) -> Tuple[Optional[Path], int, Optional[Path]]:
+    def load_configs(self) -> Tuple[Optional[Path], int, Optional[Path], SchedulerConfig]:
         """
         Validates and loads config.json.
         """
@@ -30,7 +30,7 @@ class ConfigManager:
 
         if not self.config_path.exists():
             print(f"\033[31m[CRITICAL ERROR]\033[0m Configuration file not found in: {self.config_path}")
-            return None, 0, None
+            return None, 0, None, {}
 
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
@@ -50,7 +50,7 @@ class ConfigManager:
                 print(
                     f"\033[31m[CRITICAL ERROR]\033[0m The 'path.download_path' parameter has not been defined in config.json."
                 )
-                return None, 0, None
+                return None, 0, None, {}
 
             root_download_dir = Path(raw_download_path)
 
@@ -72,13 +72,23 @@ class ConfigManager:
             else:
                 print(f"\033[34m[INFO]\033[0m No cookie path configured. Running in public mode.")
 
+            scheduler_config: SchedulerConfig = {"enable_on_startup": False, "interval_minutes": 0}
+
+            if "scheduler" in app_config:
+                scheduler_config["enable_on_startup"] = app_config["scheduler"].get("enable_on_startup", False)
+                scheduler_config["interval_minutes"] = app_config["scheduler"].get("interval_minutes", 0)
+
+            else:
+                f"\033[31m[CRITICAL ERROR]\033[0m The 'scheduler' field has not been defined in config.json."
+                return None, 0, None, {}
+
         except Exception as e:
             print(f"\033[31m[CRITICAL ERROR]\033[0m Failed to read config.json: {e}")
-            return None, 0, None
+            return None, 0, None, {}
 
         print(f"\033[34m[INFO]\033[0m Root downloads directory: {root_download_dir.resolve()}")
 
-        return root_download_dir, cooldown_minutes, cookies_path
+        return root_download_dir, cooldown_minutes, cookies_path, scheduler_config
 
     def load_channels(self) -> List[BaseChannelConfig]:
         """
