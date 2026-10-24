@@ -1,0 +1,6 @@
+{
+  "path": {
+    "download_path": "%USERPROFILE%\\Videos" // Path to download the videos (subfolders are created)
+  },
+  "cooldown_minutes": 60 // cooldown to fetch channels again
+}

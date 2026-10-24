@@ -1,0 +1,13 @@
+config/channels.json
+config/config.json
+
+downloads/
+*.mp4
+*.mkv
+*.opus
+
+__pycache__/
+*.pyc
+.venv/
+
+.env

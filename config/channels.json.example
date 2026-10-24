@@ -1,0 +1,20 @@
+{
+  "channels": [
+    {
+      "name": "Channel1", // creator name
+      "platform": "youtube", // platform name (you need to use the exactly extractor.name)
+      "feed_url": "https://www.youtube.com/@channel1", // URL of channel
+      "folder_name": "Channel1", // subfolder that will be created
+      "fetch_videos": true, // if you wanna fetch videos or not
+      "fetch_shorts": true // if you wanna fetch shorts (only youtube)
+    },
+    {
+      "name": "Channel2",
+      "platform": "youtube",
+      "feed_url": "https://www.youtube.com/@channel2",
+      "folder_name": "Channel2",
+      "fetch_videos": true,
+      "fetch_shorts": false
+    }
+  ]
+}
