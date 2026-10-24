@@ -22,45 +22,65 @@ class ConfigManager:
         self.config_path: Path = self.config_dir / "config.json"
         self.channels_path: Path = self.config_dir / "channels.json"
 
-    def carregar_configuracoes(self) -> Tuple[Optional[Path], int]:
+    def carregar_configuracoes(self) -> Tuple[Optional[Path], int, Optional[Path]]:
         """
-        1. Valida e carrega o config.json (diretório raiz e cooldown).
+        1. Valida e carrega o config.json (diretório raiz, cooldown e cookies opcionais).
         """
 
-        print(f"==================================================")
-        print(f"   ARCHIVER SYSTEM - INICIANDO ROTINA DE CANAIS   ")
-        print(f"==================================================")
-        print(f"Diretório base: {self.diretorio_base}")
+        print(f"\033[36m==================================================\033[0m")
+        print(f"\033[1m     ARCHIVER SYSTEM - INICIANDO ROTINA DE CANAIS   \033[0m")
+        print(f"\033[36m==================================================\033[0m")
+        print(f"\033[34m[INFO]\033[0m Diretório base do sistema: {self.diretorio_base}")
 
         # 1. Valida se o arquivo de configuração existe
         if not self.config_path.exists():
             print(f"[ERRO CRÍTICO] Arquivo de configuração não encontrado em: {self.config_path}")
-            return None, 0
+            return None, 0, None
 
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 app_config: AppConfig = json.load(f)
 
             raw_download_path: str = ""
+            raw_cookies_path: str = ""
 
             if "path" in app_config:
                 path_config = app_config["path"]
                 raw_download_path = path_config.get("download_path", "")
+                raw_cookies_path = path_config.get("cookies_path", "")
 
             cooldown_minutes: int = app_config.get("cooldown_minutes", 0)
 
             if not raw_download_path:
                 print(f"[ERRO CRÍTICO] O parâmetro 'path.download_path' não foi definido no config.json.")
-                return None, 0
+                return None, 0, None
 
             root_download_dir = Path(raw_download_path)
 
-        except Exception as e:
-            print(f"[ERRO CRÍTICO] Falha ao ler o config.json: {e}")
-            return None, 0
+            cookies_path: Optional[Path] = None
+            if raw_cookies_path:
+                potential_path = Path(raw_cookies_path)
 
-        print(f"Diretório raiz de downloads: {root_download_dir}")
-        return root_download_dir, cooldown_minutes
+                if potential_path.is_dir() or not potential_path.name.endswith(".txt"):
+                    potential_path = potential_path / "cookies.txt"
+
+                if potential_path.exists():
+                    cookies_path = potential_path
+                    print(f"\033[34m[INFO]\033[0m Arquivo de cookies carregado com sucesso: {cookies_path}")
+                else:
+                    print(
+                        f"\033[33m[AVISO]\033[0m O caminho de cookies informado não foi encontrado ou é inválido: {potential_path}"
+                    )
+                    print(f"\033[33m[AVISO]\033[0m O sistema continuará a execução sem autenticação de cookies.")
+            else:
+                print(f"\033[34m[INFO]\033[0m Nenhum caminho de cookies configurado. Executando em modo público.")
+
+        except Exception as e:
+            print(f"\033[31m[ERRO CRÍTICO]\033[0m Falha ao ler o config.json: {e}")
+            return None, 0, None
+
+        print(f"\033[34m[INFO]\033[0m Diretório raiz de downloads: {root_download_dir.resolve()}")
+        return root_download_dir, cooldown_minutes, cookies_path
 
     def carregar_canais(self) -> List[BaseChannelConfig]:
         """

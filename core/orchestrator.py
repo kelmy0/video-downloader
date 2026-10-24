@@ -44,7 +44,7 @@ class ChannelArchiverOrchestrator:
         return ids_baixados
 
     def executar(self) -> None:
-        root_download_dir, cooldown_minutes = self.config_manager.carregar_configuracoes()
+        root_download_dir, cooldown_minutes, cookies_path = self.config_manager.carregar_configuracoes()
         if not root_download_dir:
             return
 
@@ -116,7 +116,7 @@ class ChannelArchiverOrchestrator:
                 print(f"\n\033[33m[PROCESSANDO ITEM]\033[0m {item.title} (ID: {item.id})")
 
                 command = extrator.get_download_command(
-                    item_url=item.url, output_dir=output_dir, archive_path=archive_path
+                    item_url=item.url, output_dir=output_dir, archive_path=archive_path, cookies_path=cookies_path
                 )
                 sucesso = MediaDownloader.execute(command, output_dir)
 

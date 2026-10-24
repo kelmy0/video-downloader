@@ -55,7 +55,9 @@ class PlatformExtractor(ABC):
         pass
 
     @abstractmethod
-    def get_download_command(self, item_url: str, output_dir: Path, archive_path: Path) -> List[str]:
+    def get_download_command(
+        self, item_url: str, output_dir: Path, archive_path: Path, cookies_path: Optional[Path] = None
+    ) -> List[str]:
         """
         Constrói a lista de argumentos em formato de comando CLI (pronto para subprocess)
         para realizar o download do conteúdo via yt-dlp ou ferramenta específica.

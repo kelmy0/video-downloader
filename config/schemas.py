@@ -12,6 +12,7 @@ class PathConfig(TypedDict):
     """Estrutura da chave 'path' no config.json."""
 
     download_path: str
+    cookies_path: str
 
 
 class AppConfig(TypedDict, total=False):

@@ -98,7 +98,9 @@ class YouTubeExtractor(PlatformExtractor):
 
         return all_items
 
-    def get_download_command(self, item_url: str, output_dir: Path, archive_path: Path) -> List[str]:
+    def get_download_command(
+        self, item_url: str, output_dir: Path, archive_path: Path, cookies_path: Optional[Path] = None
+    ) -> List[str]:
         """
         Constrói o comando CLI padrão do yt-dlp mantendo a sua preferência
         de qualidade e salvando metadados e miniaturas.
@@ -122,8 +124,12 @@ class YouTubeExtractor(PlatformExtractor):
             str(output_dir.resolve()),
             "--download-archive",
             str(archive_path.resolve()),
-            item_url,
         ]
+
+        if cookies_path and cookies_path.exists():
+            command.extend(["--cookies", str(cookies_path.resolve())])
+
+        command.append(item_url)
         return command
 
     def extrair_opcoes(self, channel_config: BaseChannelConfig) -> FetchOptions:

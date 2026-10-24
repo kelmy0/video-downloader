@@ -1,6 +1,7 @@
 {
   "path": {
-    "download_path": "%USERPROFILE%\\Videos" // Path to download the videos (subfolders are created)
+    "download_path": "%USERPROFILE%\\Videos", // Path to download the videos (subfolders are created)
+    "cookies_path": "cookies.txt" // Path where is your cookies.txt file (Optional)
   },
   "cooldown_minutes": 60 // cooldown to fetch channels again
 }
