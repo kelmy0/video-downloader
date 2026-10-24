@@ -5,11 +5,10 @@ Implementação do extrator para a plataforma YouTube, utilizando
 o feed RSS XML nativo para varredura leve de novos vídeos.
 """
 
-import subprocess
-import json
+import yt_dlp
 
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, cast
+from typing import List, Optional, Set, Tuple, cast, Dict
 from core.base import PlatformExtractor, FetchOptions, MediaItem
 from config.manager import BaseChannelConfig
 from config.schemas import YouTubeChannelConfig
@@ -58,39 +57,46 @@ class YouTubeExtractor(PlatformExtractor):
             if not endpoints_a_varrer:
                 endpoints_a_varrer.append((f"{base_url}/videos", "Vídeos"))
 
+        ydl_opts: Dict[str, object] = {
+            "extract_flat": True,
+            "skip_download": True,
+            "no_warnings": True,
+            "quiet": True,
+        }
+
         for endpoint, tipo in endpoints_a_varrer:
             print(f"[YouTubeExtractor] Varredura leve ({tipo}) no canal: {endpoint}")
 
-            command = ["yt-dlp", "--flat-playlist", "--print-json", "--no-warnings", endpoint]
-
             try:
-                result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore[arg-type]
+                    info = ydl.extract_info(endpoint, download=False)
 
-                if result.returncode != 0:
-                    print(f"[YouTubeExtractor] [AVISO] Falha ao varrer a aba {tipo}: {result.stderr.strip()}")
-                    continue
-
-                for line in result.stdout.splitlines():
-                    if not line.strip():
+                    if not info:
+                        print(f"[YouTubeExtractor] [AVISO] Falha ao varrer a aba {tipo}: Nenhum dado retornado.")
                         continue
-                    try:
-                        data = json.loads(line)
-                        video_id = data.get("id")
-                        title = data.get("title")
+
+                    entries = info.get("entries", [info])
+
+                    if not entries:
+                        continue
+
+                    for entry in entries:
+                        if not entry:
+                            continue
+
+                        video_id = entry.get("id")
+                        title = entry.get("title")
 
                         if video_id and title and video_id not in seen_ids:
                             seen_ids.add(video_id)
                             url = f"https://www.youtube.com/watch?v={video_id}"
-                            upload_date = data.get("upload_date")
+                            upload_date = entry.get("upload_date")
 
                             all_items.append(
                                 MediaItem(
                                     id=video_id, title=title, url=url, extractor=self.name, upload_date=upload_date
                                 )
                             )
-                    except json.JSONDecodeError:
-                        continue
-
             except Exception as e:
                 print(f"[YouTubeExtractor] [ERRO] Erro ao varrer {tipo}: {e}")
 
@@ -100,37 +106,32 @@ class YouTubeExtractor(PlatformExtractor):
 
     def get_download_command(
         self, item_url: str, output_dir: Path, archive_path: Path, cookies_path: Optional[Path] = None
-    ) -> List[str]:
+    ) -> Dict[str, object]:
         """
-        Constrói o comando CLI padrão do yt-dlp mantendo a sua preferência
-        de qualidade e salvando metadados e miniaturas.
+        Constrói o dicionário de opções padrão do yt-dlp mantendo a preferência
+        de qualidade, salvando metadados e miniaturas nativamente.
         """
 
-        command: List[str] = [
-            "yt-dlp",
-            "-f",
-            "bestvideo*+bestaudio/best",
-            "--merge-output-format",
-            "mkv",
-            "--write-info-json",
-            "--write-thumbnail",
-            "--embed-thumbnail",
-            "--embed-metadata",
-            "--embed-subs",
-            "--write-subs",
-            "--sub-langs",
-            "all",
-            "--paths",
-            str(output_dir.resolve()),
-            "--download-archive",
-            str(archive_path.resolve()),
-        ]
+        ydl_opts: Dict[str, object] = {
+            "format": "bestvideo*+bestaudio/best",
+            "merge_output_format": "mkv",
+            "writeinfojson": True,
+            "writethumbnail": True,
+            "embedthumbnail": True,
+            "embedmetadata": True,
+            "embedsubs": True,
+            "writesubtitles": True,
+            "subtitleslangs": ["all"],
+            "paths": {"home": str(output_dir.resolve())},
+            "download_archive": str(archive_path.resolve()),
+        }
 
         if cookies_path and cookies_path.exists():
-            command.extend(["--cookies", str(cookies_path.resolve())])
+            ydl_opts["cookiefile"] = str(cookies_path.resolve())
 
-        command.append(item_url)
-        return command
+        ydl_opts["url_alvo"] = item_url
+
+        return ydl_opts
 
     def extrair_opcoes(self, channel_config: BaseChannelConfig) -> FetchOptions:
         yt_config = cast(YouTubeChannelConfig, channel_config)

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, TypedDict
+from typing import List, Optional, TypedDict, Dict
 from config.manager import BaseChannelConfig
 
 
@@ -57,18 +57,18 @@ class PlatformExtractor(ABC):
     @abstractmethod
     def get_download_command(
         self, item_url: str, output_dir: Path, archive_path: Path, cookies_path: Optional[Path] = None
-    ) -> List[str]:
+    ) -> Dict[str, object]:
         """
-        Constrói a lista de argumentos em formato de comando CLI (pronto para subprocess)
-        para realizar o download do conteúdo via yt-dlp ou ferramenta específica.
+        Constrói o dicionário de opções tipadas do yt-dlp para realizar o download.
 
         Args:
             item_url (str): URL do vídeo a ser baixado.
             output_dir (Path): Caminho da pasta física onde o arquivo será salvo.
             archive_path (Path): Caminho do arquivo archive.txt localizado dentro da pasta.
+            cookies_path (Optional[Path]): Caminho opcional para o arquivo de cookies.
 
         Returns:
-            List[str]: Lista de strings representando o comando CLI a ser executado.
+            Dict[str, object]: Dicionário de configuração nativa para o yt_dlp.YoutubeDL.
         """
         pass
 

@@ -1,15 +1,15 @@
 """
 core/downloader.py
 
-Módulo responsável por gerenciar a execução segura de subprocessos (como o yt-dlp),
+Módulo responsável por gerenciar a execução segura do yt_dlp,
 controlando o diretório de trabalho (working directory), o tratamento de erros
 e a exibição de logs em tempo real no console.
 """
 
-import subprocess
+import yt_dlp
 import sys
 from pathlib import Path
-from typing import List
+from typing import Dict
 
 
 class MediaDownloader:
@@ -18,42 +18,43 @@ class MediaDownloader:
     """
 
     @staticmethod
-    def execute(command: List[str], output_dir: Path) -> bool:
+    def execute(ydl_opts: Dict[str, object], output_dir: Path) -> bool:
         """
-        Executa um comando CLI (ex: yt-dlp) em um diretório de destino específico,
-        redirecionando a saída padrão para o console em tempo real.
+        Executa o download utilizando diretamente a API Python do yt-dlp,
+        redirecionando os logs e colorindo a saída no terminal.
 
         Args:
-            command (List[str]): Lista de argumentos do comando a ser executado.
-            output_dir (Path): Pasta física onde o comando deve ser executado (working directory).
+            ydl_opts (Dict[str, object]): Dicionário de opções gerado pelo extrator.
+            output_dir (Path): Pasta física de destino.
 
         Returns:
-            bool: True se o download/execução ocorreu com sucesso (exit code 0), False caso contrário.
+            bool: True se o download ocorreu com sucesso, False caso contrário.
         """
 
-        # Garante que a pasta física do canal existe antes de rodar o comando
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"\n[DOWNLOADER] Executando em: {output_dir.resolve()}")
-        print(f"[DOWNLOADER] Comando: {' '.join(command)}")
+        print(f"\n\033[34m[DOWNLOADER]\033[0m Executando em: \033[1m{output_dir.resolve()}\033[0m")
 
-        try:
-            result = subprocess.run(command, cwd=str(output_dir), text=True, encoding="utf-8", errors="replace")
-
-            if result.returncode == 0:
-                print(f"[DOWNLOADER] [SUCESSO] Processo finalizado com êxito.")
-                return True
-            else:
-                print(f"[DOWNLOADER] [AVISO] Processo finalizado com código de erro: {result.returncode}")
-                return False
-
-        except FileNotFoundError:
+        item_url = str(ydl_opts.pop("url_alvo", ""))
+        if not item_url:
             print(
-                f"[DOWNLOADER] [ERRO CRÍTICO] O executável '{command[0]}' não foi encontrado no PATH do sistema.",
+                f"\033[31m[DOWNLOADER] [ERRO CRÍTICO]\033[0m Nenhuma URL alvo foi fornecida nas opções do yt-dlp.",
                 file=sys.stderr,
             )
             return False
 
+        print(f"\n\033[34m[DOWNLOADER]\033[0m Iniciando motor yt-dlp para a URL: \033[36m{item_url}\033[0m")
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore[arg-type]
+                ydl.download([item_url])
+
+            print(f"\033[32m[DOWNLOADER] [SUCESSO]\033[0m Processo finalizado com êxito.")
+            return True
+
         except Exception as e:
-            print(f"[DOWNLOADER] [ERRO CRÍTICO] Falha inesperada ao executar o subprocesso: {e}", file=sys.stderr)
+            print(
+                f"\033[31m[DOWNLOADER] [ERRO CRÍTICO]\033[0m Falha ao executar o download via yt-dlp: {e}",
+                file=sys.stderr,
+            )
             return False
