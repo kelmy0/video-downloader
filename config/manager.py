@@ -31,7 +31,7 @@ class ConfigManager:
 
         # 1. Valida se o arquivo de configuração existe
         if not self.config_path.exists():
-            print(f"[ERRO CRÍTICO] Arquivo de configuração não encontrado em: {self.config_path}")
+            print(f"\033[31m[ERRO CRÍTICO]\033[0m Arquivo de configuração não encontrado em: {self.config_path}")
             return None, 0, None
 
         try:
@@ -49,7 +49,9 @@ class ConfigManager:
             cooldown_minutes: int = app_config.get("cooldown_minutes", 0)
 
             if not raw_download_path:
-                print(f"[ERRO CRÍTICO] O parâmetro 'path.download_path' não foi definido no config.json.")
+                print(
+                    f"\033[31m[ERRO CRÍTICO]\033[0m O parâmetro 'path.download_path' não foi definido no config.json."
+                )
                 return None, 0, None
 
             root_download_dir = Path(raw_download_path)
@@ -109,6 +111,11 @@ class ConfigManager:
         last_checked_str: Optional[str] = channel_config.get("last_checked")
         name: str = channel_config.get("name", "Canal")
 
+        if cooldown_minutes <= 0:
+            print(
+                "\033[33m[AVISO]\033[0m Cooldown está desativado, todos os canais serão analisados mesmo os que já foram recentemente."
+            )
+
         if cooldown_minutes > 0 and last_checked_str:
             try:
                 ultima_consulta = datetime.strptime(last_checked_str, "%Y-%m-%d %H:%M:%S")
@@ -120,7 +127,7 @@ class ConfigManager:
                     minutos_restantes = int(tempo_restante.total_seconds() // 60)
                     segundos_restantes = int(tempo_restante.total_seconds() % 60)
                     print(
-                        f"[COOLDOWN] Canal '{name}' ignorado. Em período de espera ({minutos_restantes}m {segundos_restantes}s restantes)."
+                        f"\033[34m[COOLDOWN]\033[0m Canal '{name}' ignorado. Em período de espera ({minutos_restantes}m {segundos_restantes}s restantes)."
                     )
                     return True
             except ValueError:
@@ -137,7 +144,7 @@ class ConfigManager:
             channels_data = {"channels": channels}
             with open(self.channels_path, "w", encoding="utf-8") as f:
                 json.dump(channels_data, f, indent=4, ensure_ascii=False)
-                print(f"\n[MEMÓRIA] Estado de 'last_checked' atualizado com sucesso no channels.json.")
+                print(f"\n\033[34m[MEMÓRIA]\033[0m Estado de 'last_checked' atualizado com sucesso no channels.json.")
 
         except Exception as e:
-            print(f"\n[AVISO] Falha ao atualizar o arquivo channels.json: {e}")
+            print(f"\n\033[33m[AVISO]\033[0m Falha ao atualizar o arquivo channels.json: {e}")

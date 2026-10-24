@@ -65,14 +65,16 @@ class YouTubeExtractor(PlatformExtractor):
         }
 
         for endpoint, tipo in endpoints_a_varrer:
-            print(f"[YouTubeExtractor] Varredura leve ({tipo}) no canal: {endpoint}")
+            print(f"\033[34m[YouTubeExtractor]\033[0m Varredura leve ({tipo}) no canal: {endpoint}")
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore[arg-type]
                     info = ydl.extract_info(endpoint, download=False)
 
                     if not info:
-                        print(f"[YouTubeExtractor] [AVISO] Falha ao varrer a aba {tipo}: Nenhum dado retornado.")
+                        print(
+                            f"\033[33m[YouTubeExtractor] [AVISO]\033[0m Falha ao varrer a aba {tipo}: Nenhum dado retornado."
+                        )
                         continue
 
                     entries = info.get("entries", [info])
@@ -98,9 +100,9 @@ class YouTubeExtractor(PlatformExtractor):
                                 )
                             )
             except Exception as e:
-                print(f"[YouTubeExtractor] [ERRO] Erro ao varrer {tipo}: {e}")
+                print(f"\033[31m[YouTubeExtractor] [ERRO]\033[0m Erro ao varrer {tipo}: {e}")
 
-        print(f"[YouTubeExtractor] Sucesso: Total de {len(all_items)} itens únicos encontrados.")
+        print(f"\033[32m[YouTubeExtractor] [SUCESSO]\033[0m Total de {len(all_items)} itens únicos encontrados.")
 
         return all_items
 
