@@ -3,5 +3,9 @@
     "download_path": "%USERPROFILE%\\Videos", // Path to download the videos (subfolders are created)
     "cookies_path": "cookies.txt" // Path where is your cookies.txt file (Optional)
   },
-  "cooldown_minutes": 60 // cooldown to fetch channels again
+  "cooldown_minutes": 60, // cooldown to fetch channels again
+  "scheduler": {
+    "enable_on_startup": true, // if program will run on startup (doesnt affect interval_minutes).
+    "interval_minutes": 60 // interval in minutes between one execution and the next (set 0 to disable it).
+  }
 }

@@ -10,7 +10,8 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List, Tuple
-from config.schemas import AppConfig, BaseChannelConfig
+from schemas.config_schema import AppConfig
+from schemas.channel_schema import BaseChannelConfig
 
 
 class ConfigManager:

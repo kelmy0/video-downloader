@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Optional, Set, Tuple, cast, Dict
 from core.base import PlatformExtractor, FetchOptions, MediaItem
 from config.manager import BaseChannelConfig
-from config.schemas import YouTubeChannelConfig
+from schemas.channel_schema import YouTubeChannelConfig
 
 
 class YouTubeExtractor(PlatformExtractor):

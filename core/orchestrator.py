@@ -12,7 +12,7 @@ from core.base import PlatformExtractor, FetchOptions
 from core.downloader import MediaDownloader
 from core.dependencies import DependencyChecker
 from config.manager import ConfigManager
-from config.schemas import BaseChannelConfig
+from schemas.channel_schema import BaseChannelConfig
 
 
 class ChannelArchiverOrchestrator:
