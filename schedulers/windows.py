@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from schedulers.base import BaseScheduler
 from typing import Optional
+from utils.path_utils import PathUtils
 
 
 class WindowsScheduler(BaseScheduler):
@@ -83,9 +84,9 @@ class WindowsScheduler(BaseScheduler):
 
                 if startup_folder:
                     startup_folder.mkdir(parents=True, exist_ok=True)
-
                     bat_path = startup_folder / f"{self.TASK_NAME}.bat"
-                    bat_content = f'@echo off\nstart /min "" {exec_cmd}\n'
+                    project_dir = PathUtils.get_project_root()
+                    bat_content = f"@echo off\n" f'cd /d "{project_dir}"\n' f'start /min "" {exec_cmd}\n'
                     bat_path.write_text(bat_content, encoding="utf-8")
                     print(f"\033[32m[SUCCESS]\033[0m Startup hook registered successfully.")
             except Exception as e:

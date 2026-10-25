@@ -11,13 +11,14 @@ from pathlib import Path
 from typing import Optional, List, Tuple, Any, Dict, cast
 from schemas.config_schema import SchedulerConfig, AppConfig
 from schemas.channel_schema import BaseChannelConfig
+from utils.path_utils import PathUtils
 
 
 class ConfigManager:
     """Centralized manager for channel settings and status."""
 
     def __init__(self):
-        self.base_directory: Path = Path.cwd()
+        self.base_directory: Path = PathUtils.get_project_root()
         self.config_dir: Path = self.base_directory / "config"
         self.config_path: Path = self.config_dir / "config.json"
         self.channels_path: Path = self.config_dir / "channels.json"
