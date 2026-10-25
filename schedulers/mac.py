@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 from typing import List
 from schedulers.base import BaseScheduler
+from utils.path_utils import PathUtils
 
 
 class MacScheduler(BaseScheduler):
@@ -68,6 +69,8 @@ class MacScheduler(BaseScheduler):
             args = self._get_program_arguments()
             args_xml = "".join([f"        <string>{arg}</string>\n" for arg in args])
 
+            project_dir = PathUtils.get_project_root()
+
             extra_keys = ""
             if interval_minutes > 0:
                 interval_seconds = interval_minutes * 60
@@ -77,7 +80,7 @@ class MacScheduler(BaseScheduler):
                 )
 
             if run_on_startup:
-                extra_keys += "<key>RunAtLoad</key>\n    <true/>\n"
+                extra_keys += "    <key>RunAtLoad</key>\n    <true/>\n"
                 print(f"\033[34m[INFO]\033[0m Enabling startup execution via launchd RunAtLoad.")
 
             plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -89,6 +92,8 @@ class MacScheduler(BaseScheduler):
     <key>ProgramArguments</key>
     <array>
 {args_xml}    </array>
+    <key>WorkingDirectory</key>
+    <string>{project_dir}</string>
 {extra_keys}    <key>StandardOutPath</key>
     <string>/dev/null</string>
     <key>StandardErrorPath</key>
