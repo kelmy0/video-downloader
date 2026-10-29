@@ -52,7 +52,7 @@ class PlatformExtractor(ABC, Generic[T_Options]):
 
     @abstractmethod
     def get_download_command(
-        self, item_url: str, output_dir: Path, archive_path: Path, cookies_path: Optional[Path] = None
+        self, item_url: str, output_dir: Path, archive_path: Optional[Path], cookies_path: Optional[Path] = None
     ) -> Dict[str, object]:
         """
         Constructs the dictionary of typed options for yt-dlp to perform the download.

@@ -14,6 +14,8 @@ from core.base import PlatformExtractor
 from core.downloader import MediaDownloader
 from schemas.channel_schema import BaseChannelConfig
 
+from state.manager import StateManager
+
 
 class ChannelProcessor:
     """Handles the processing pipeline for a single channel configuration."""
@@ -43,6 +45,35 @@ class ChannelProcessor:
             print(f"\033[33m[WARNING]\033[0m Failed to read the file archive.txt: {e}")
 
         return downloaded_ids
+
+    def _is_quality_compromised(self, info: Dict[str, Any]) -> bool:
+        """
+        Compares the downloaded video's resolution with the maximum available
+        resolution found in the metadata to detect fallback/throttling issues.
+
+        Returns:
+            bool: True if quality is significantly compromised, False otherwise.
+        """
+        downloaded_height = info.get("height")
+
+        if not downloaded_height:
+            return False
+
+        formats = info.get("formats", [])
+        if not formats:
+            return False
+
+        max_available_height = 0
+        for fmt in formats:
+            if fmt.get("vcodec") != "none":
+                h = fmt.get("height")
+                if h and h > max_available_height:
+                    max_available_height = h
+
+        if max_available_height != downloaded_height:
+            return True
+
+        return False
 
     def process_channel(
         self,
@@ -116,9 +147,66 @@ class ChannelProcessor:
             command = extractor.get_download_command(
                 item_url=item.url, output_dir=output_dir, archive_path=archive_path, cookies_path=cookies_path
             )
-            success = MediaDownloader.execute(command, output_dir)
+            success, info = MediaDownloader.execute(command, output_dir)
 
             if not success:
                 print(f"\033[31m[ERROR]\033[0m The download of item {item.id} failed or was skipped.")
+                continue
 
+            if self._is_quality_compromised(info):
+                print(
+                    f"\033[33m[WARNING]\033[0m Item {item.id} downloaded in suboptimal quality. Queuing for retry later."
+                )
+
+                StateManager.add_retry_item(
+                    platform=platform_name,
+                    video_id=item.id,
+                    item_url=item.url,
+                    folder_name=folder_name,
+                    title=item.title,
+                )
         return True
+
+    def process_retry_queue(self, root_download_dir: Path, cookies_path: Optional[Path]) -> None:
+        retries = StateManager.get_retries()
+        if not retries:
+            return
+
+        print(f"\n\033[36m--------------------------------------------------\033[0m")
+        print(f"\033[1m[RETRY PIPELINE] Processing {len(retries)} suboptimal media item(s)\033[0m")
+        print(f"\033[36m--------------------------------------------------\033[0m")
+
+        for item_data in retries:
+            platform_name = item_data["platform"]
+            video_id = item_data["video_id"]
+            item_url = item_data["item_url"]
+            folder_name = item_data["folder_name"]
+            title = item_data["title"]
+
+            print(f"\n\033[33m[RE-PROCESSING]\033[0m {title} (ID: {video_id})")
+
+            extractor = self.extractors.get(platform_name)
+            if not extractor:
+                print(f"\033[31m[ERROR]\033[0m Extractor not found for platform: {platform_name}")
+                continue
+
+            output_dir = root_download_dir / folder_name
+
+            command = extractor.get_download_command(
+                item_url=item_url, output_dir=output_dir, archive_path=None, cookies_path=cookies_path
+            )
+
+            success, info = MediaDownloader.execute(command, output_dir)
+
+            if success:
+                # Valida se a qualidade agora ficou boa ou se ainda está comprometida
+                if not self._is_quality_compromised(info):
+                    print(f"\033[32m[SUCCESS]\033[0m Item {video_id} successfully upgraded to maximum quality!")
+                    # Remove da lista de pendências do JSON/SQLite
+                    StateManager.remove_retry_item(video_id, platform_name)
+                else:
+                    print(
+                        f"\033[33m[WARNING]\033[0m Item {video_id} is still at a suboptimal quality. Keeping in retry queue."
+                    )
+            else:
+                print(f"\033[31m[ERROR]\033[0m Retry download failed for {video_id}. Will try again next time.")

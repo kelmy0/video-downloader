@@ -104,7 +104,7 @@ class YouTubeExtractor(PlatformExtractor[YouTubeFetchOptions]):
         return all_items
 
     def get_download_command(
-        self, item_url: str, output_dir: Path, archive_path: Path, cookies_path: Optional[Path] = None
+        self, item_url: str, output_dir: Path, archive_path: Optional[Path], cookies_path: Optional[Path] = None
     ) -> Dict[str, object]:
         """
         Constructs the default yt-dlp options dictionary, maintaining quality
@@ -122,8 +122,10 @@ class YouTubeExtractor(PlatformExtractor[YouTubeFetchOptions]):
             "writesubtitles": True,
             "subtitleslangs": ["all"],
             "paths": {"home": str(output_dir.resolve())},
-            "download_archive": str(archive_path.resolve()),
         }
+
+        if archive_path is not None:
+            ydl_opts["download_archive"] = str(archive_path.resolve())
 
         if cookies_path and cookies_path.exists():
             ydl_opts["cookiefile"] = str(cookies_path.resolve())

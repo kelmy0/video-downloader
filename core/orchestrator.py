@@ -96,3 +96,6 @@ class ChannelArchiverOrchestrator:
         # 6. Save state changes if any occurred
         if there_is_change_in_channels:
             self.config_manager.save_channel_changes(channels)
+
+        # 7. Retry download suboptimal media items
+        self.processor.process_retry_queue(root_download_dir=root_download_dir, cookies_path=cookies_path)
