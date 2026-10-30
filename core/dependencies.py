@@ -32,7 +32,7 @@ class DependencyChecker:
         ffmpeg_path = cls.check_bin("ffmpeg")
 
         if not ffmpeg_path:
-            print(f"\033[33m[CRITICAL ERROR]\033[0m O 'ffmpeg' não foi encontrado.")
+            print(f"\033[33m[CRITICAL ERROR]\033[0m 'ffmpeg' not found.")
             return False
 
         print(f"\033[32m[OK]\033[0m ffmpeg found at: {ffmpeg_path}")

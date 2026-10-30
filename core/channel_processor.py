@@ -13,8 +13,7 @@ from config.manager import ConfigManager
 from core.base import PlatformExtractor
 from core.downloader import MediaDownloader
 from schemas.channel_schema import BaseChannelConfig
-
-from state.manager import StateManager
+from repositories.retry_repository import RetryRepository
 
 
 class ChannelProcessor:
@@ -158,7 +157,7 @@ class ChannelProcessor:
                     f"\033[33m[WARNING]\033[0m Item {item.id} downloaded in suboptimal quality. Queuing for retry later."
                 )
 
-                StateManager.add_retry_item(
+                RetryRepository.add_retry_item(
                     platform=platform_name,
                     video_id=item.id,
                     item_url=item.url,
@@ -168,7 +167,7 @@ class ChannelProcessor:
         return True
 
     def process_retry_queue(self, root_download_dir: Path, cookies_path: Optional[Path]) -> None:
-        retries = StateManager.get_retries()
+        retries = RetryRepository.get_retries()
         if not retries:
             return
 
@@ -203,7 +202,7 @@ class ChannelProcessor:
                 if not self._is_quality_compromised(info):
                     print(f"\033[32m[SUCCESS]\033[0m Item {video_id} successfully upgraded to maximum quality!")
                     # Remove da lista de pendências do JSON/SQLite
-                    StateManager.remove_retry_item(video_id, platform_name)
+                    RetryRepository.remove_retry_item(video_id, platform_name)
                 else:
                     print(
                         f"\033[33m[WARNING]\033[0m Item {video_id} is still at a suboptimal quality. Keeping in retry queue."
