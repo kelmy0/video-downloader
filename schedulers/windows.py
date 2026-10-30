@@ -58,13 +58,16 @@ class WindowsScheduler(BaseScheduler):
 
         if interval_minutes > 0:
             print(f"\033[34m[INFO]\033[0m scheduling execution in task scheduler every {interval_minutes} minutes.")
+
+            minimized_interval_cmd = f'cmd.exe /c start /min "" {exec_cmd}'
+
             cmd_interval = [
                 "schtasks",
                 "/create",
                 "/tn",
                 f"{self.TASK_NAME}_Interval",
                 "/tr",
-                exec_cmd,
+                minimized_interval_cmd,
                 "/sc",
                 "MINUTE",
                 "/mo",

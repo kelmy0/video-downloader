@@ -106,6 +106,7 @@ class LinuxScheduler(BaseScheduler):
                     f"Type=Application\n"
                     f"Name=Media Archiver\n"
                     f"Exec={exec_cmd}\n"
+                    f"Terminal=false\n"
                     f"X-GNOME-Autostart-enabled=true\n"
                     f"NoDisplay=true\n"
                 )
