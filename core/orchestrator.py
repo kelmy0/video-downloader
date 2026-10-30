@@ -13,6 +13,7 @@ from core.channel_processor import ChannelProcessor
 from core.dependencies import DependencyChecker
 from schemas.channel_schema import BaseChannelConfig
 from schedulers.factory import SchedulerFactory
+from database.migrations.runner import MigrationRunner
 
 
 class ChannelArchiverOrchestrator:
@@ -47,21 +48,24 @@ class ChannelArchiverOrchestrator:
 
     def run(self) -> None:
         """Validates environment, sets up schedules, and executes the channel archiving loop."""
-        # 1. Check the project dependencies
+        # Check the project dependencies
         if not DependencyChecker.validate_enviroment():
             return
 
-        # 2. Load global configurations
+        # Run migrations
+        MigrationRunner.run_pending_migrations()
+
+        # Load global configurations
         root_download_dir, cooldown_minutes, cookies_path, scheduler_config = self.config_manager.load_configs()
         if not root_download_dir or not scheduler_config:
             return
 
-        # 3. Load channels configuration
+        # Load channels configuration
         channels: List[BaseChannelConfig] = self.config_manager.load_channels()
         if not channels:
             return
 
-        # 4. Setup scheduler if configured
+        # Setup scheduler if configured
         if "interval_minutes" in scheduler_config and "enable_on_startup" in scheduler_config:
             scheduler = SchedulerFactory.get_scheduler()
             if not scheduler.setup_schedule(
@@ -72,7 +76,7 @@ class ChannelArchiverOrchestrator:
         now: datetime = datetime.now()
         there_is_change_in_channels: bool = False
 
-        # 5. Process each registered channel
+        # Process each registered channel
         for idx, channel_config in enumerate(channels, start=1):
             name = channel_config.get("name", f"Channel_{idx}")
             platform_name = channel_config.get("platform", "").lower()
@@ -93,9 +97,9 @@ class ChannelArchiverOrchestrator:
             if processed_successfully:
                 there_is_change_in_channels = True
 
-        # 6. Save state changes if any occurred
+        # Save state changes if any occurred
         if there_is_change_in_channels:
             self.config_manager.save_channel_changes(channels)
 
-        # 7. Retry download suboptimal media items
+        # Retry download suboptimal media items
         self.processor.process_retry_queue(root_download_dir=root_download_dir, cookies_path=cookies_path)
