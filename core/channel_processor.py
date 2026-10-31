@@ -14,36 +14,53 @@ from core.base import PlatformExtractor
 from core.downloader import MediaDownloader
 from schemas.channel_schema import BaseChannelConfig
 from repositories.retry_repository import RetryRepository
+from repositories.download_repository import DownloadRepository
+from repositories.imported_folder_repository import ImportedFolderRepository
 
 
 class ChannelProcessor:
     """Handles the processing pipeline for a single channel configuration."""
 
+    __download_history = DownloadRepository.get_download_history()
+
     def __init__(self, config_manager: ConfigManager, extractors: Dict[str, PlatformExtractor[Any]]) -> None:
-        self.config_manager = config_manager
-        self.extractors = extractors
+        self.__config_manager = config_manager
+        self.__extractors = extractors
 
-    def _load_archived_ids(self, archive_path: Path) -> Set[Tuple[str, str]]:
+    def _ensure_folder_migrated_and_get_history(self, folder_name: str, archive_path: Path) -> Set[Tuple[str, str]]:
         """
-        Reads the yt-dlp `archive.txt` file and returns a set containing only the IDs
-        of the videos already downloaded.
+        Manages lazy loading: if the folder has never been imported, it reads the local .txt file,
+        adds the data to the global database, marks it as imported, and updates the class's in-memory set.
         """
-        downloaded_ids: Set[Tuple[str, str]] = set()
-        if not archive_path.exists():
-            return downloaded_ids
+        if ImportedFolderRepository.is_folder_imported(folder_name):
+            print(f"\033[32m[DB History]\033[0m Folder '{folder_name}' already imported. Using global history cache.")
+            return ChannelProcessor.__download_history
 
-        try:
-            with open(archive_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    parts = line.strip().split()
-                    if len(parts) >= 2:
-                        platform = parts[0].lower()
-                        video_id = parts[1]
-                        downloaded_ids.add((platform, video_id))
-        except Exception as e:
-            print(f"\033[33m[WARNING]\033[0m Failed to read the file archive.txt: {e}")
+        print(f"\033[34m[Lazy Loading]\033[0m First time processing folder '{folder_name}'. Importing legacy .txt...")
 
-        return downloaded_ids
+        legacy_items: Set[Tuple[str, str]] = set()
+        if archive_path.exists():
+            try:
+                with open(archive_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 2:
+                            platform = parts[0].lower()
+                            video_id = parts[1]
+                            legacy_items.add((platform, video_id))
+
+            except Exception as e:
+                print(f"\033[33m[WARNING]\033[0m Failed to read legacy archive.txt for '{folder_name}': {e}")
+
+        if legacy_items:
+            DownloadRepository.add_download_items_batch(list(legacy_items))
+            ChannelProcessor.__download_history.update(legacy_items)
+            print(
+                f"\033[32m[Lazy Loading]\033[0m Successfully migrated {len(legacy_items)} items from '{folder_name}' to SQLite."
+            )
+        ImportedFolderRepository.mark_folder_as_imported(folder_name)
+
+        return ChannelProcessor.__download_history
 
     def _is_quality_compromised(self, info: Dict[str, Any]) -> bool:
         """
@@ -92,7 +109,7 @@ class ChannelProcessor:
         folder_name = channel_config.get("folder_name")
 
         # 1. Cooldown validation
-        if self.config_manager.check_cooldown(channel_config, cooldown_minutes, now):
+        if self.__config_manager.check_cooldown(channel_config, cooldown_minutes, now):
             return False
 
         # 2. Configuration completeness validation
@@ -101,7 +118,7 @@ class ChannelProcessor:
             return False
 
         # 3. Extractor resolution
-        extractor = self.extractors.get(platform_name)
+        extractor = self.__extractors.get(platform_name)
         if not extractor:
             print(f"\033[33m[WARNING]\033[0m Platform '{platform_name}' is not supported or not registered.")
             return False
@@ -112,7 +129,7 @@ class ChannelProcessor:
         print(f"\033[34m[INFO]\033[0m Destination folder: {output_dir.resolve()}")
 
         # 4. Load already archived IDs from disk
-        pairs_already_downloaded = self._load_archived_ids(archive_path)
+        pairs_already_downloaded = self._ensure_folder_migrated_and_get_history(folder_name, archive_path)
 
         # 5. Extract platform-specific options and fetch feed items
         options = extractor.extract_options(channel_config)
@@ -164,6 +181,9 @@ class ChannelProcessor:
                     folder_name=folder_name,
                     title=item.title,
                 )
+            else:
+                DownloadRepository.add_download_item(platform=platform_name, video_id=item.id)
+                ChannelProcessor.__download_history.add((platform_name, item.id))
         return True
 
     def process_retry_queue(self, root_download_dir: Path, cookies_path: Optional[Path]) -> None:
@@ -184,7 +204,7 @@ class ChannelProcessor:
 
             print(f"\n\033[33m[RE-PROCESSING]\033[0m {title} (ID: {video_id})")
 
-            extractor = self.extractors.get(platform_name)
+            extractor = self.__extractors.get(platform_name)
             if not extractor:
                 print(f"\033[31m[ERROR]\033[0m Extractor not found for platform: {platform_name}")
                 continue
